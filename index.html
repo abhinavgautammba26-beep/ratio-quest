@@ -1,0 +1,520 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ratio Quest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:wght@600;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: a station-board game. Sticky scoreboard on top, a signal-lamp map of five ratio worlds, then one big panel per step. Green/amber/red lamps carry the verdicts. */
+:root{
+  --bg:#EEF1F6; --surface:#FFFFFF; --surface2:#E6EBF3; --ink:#0F1B2D; --muted:#4B5A74; --line:#CBD3E1;
+  --accent:#2447D6; --accent-ink:#FFFFFF; --good:#0B7446; --good-bg:#DCF3E7; --warn:#8F5600; --warn-bg:#FFEFCF; --bad:#B3261E; --bad-bg:#FCE2DF;
+  --head:#0F1B2D; --head-ink:#F3F6FC; --gold:#E9A800;
+  --f-display:'Bricolage Grotesque','Trebuchet MS',sans-serif; --f-body:'Atkinson Hyperlegible','Segoe UI',Verdana,sans-serif; --f-mono:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1322; --surface:#141F36; --surface2:#1C2A47; --ink:#EEF2FA; --muted:#A3B1CB; --line:#2C3C5E;
+  --accent:#8AA3FF; --accent-ink:#0B1322; --good:#58D79C; --good-bg:#12392B; --warn:#F2B64A; --warn-bg:#3A2D10; --bad:#FF8F85; --bad-bg:#46191B;
+  --head:#070D19; --head-ink:#EEF2FA; --gold:#F4C23D; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1322; --surface:#141F36; --surface2:#1C2A47; --ink:#EEF2FA; --muted:#A3B1CB; --line:#2C3C5E;
+  --accent:#8AA3FF; --accent-ink:#0B1322; --good:#58D79C; --good-bg:#12392B; --warn:#F2B64A; --warn-bg:#3A2D10; --bad:#FF8F85; --bad-bg:#46191B;
+  --head:#070D19; --head-ink:#EEF2FA; --gold:#F4C23D; color-scheme:dark}
+*{box-sizing:border-box}
+html{font-size:22px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 3rem}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--head)}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);line-height:1.1;margin:0;text-wrap:balance}
+h2{font-size:2rem;font-weight:800} h3{font-size:1.35rem;font-weight:800}
+p{margin:.4rem 0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+/* scoreboard */
+.hud{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--head);color:var(--head-ink);margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding:.6rem max(16px,env(safe-area-inset-left,0px));}
+.hud-in{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;align-items:center}
+.brand{font-family:var(--f-display);font-weight:800;font-size:1.6rem;cursor:pointer;background:none;border:0;color:inherit;padding:0}
+.brand span{color:var(--gold)}
+.xp{flex:1 1 280px;min-width:0}
+.xp-top{display:flex;justify-content:space-between;gap:.5rem;font-size:.85rem;flex-wrap:wrap}
+.bar{height:.7rem;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--gold);border-radius:99px;transition:width .5s}
+.hud-btn{background:transparent;border:2px solid rgba(255,255,255,.35);color:inherit;border-radius:.6rem;padding:.2rem .7rem;font-size:.85rem}
+/* generic */
+.card{background:var(--surface);border:2px solid var(--line);border-radius:1rem;padding:1.1rem 1.3rem}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:.8rem;padding:.65rem 1.3rem;font-weight:700;font-size:1rem}
+.btn.alt{background:var(--surface2);color:var(--ink);border:2px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.pill{display:inline-block;border-radius:99px;padding:.1rem .8rem;font-weight:700;font-size:.85rem}
+.good{background:var(--good-bg);color:var(--good)} .warn{background:var(--warn-bg);color:var(--warn)} .bad{background:var(--bad-bg);color:var(--bad)} .info{background:var(--surface2);color:var(--muted)}
+.muted{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:1rem}
+/* home */
+.hero{padding:2rem 0 1rem}
+.hero h1{font-size:clamp(2.6rem,7vw,4.4rem);font-weight:800}
+.hero p{font-size:1.2rem;max-width:44ch}
+.map{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1rem;margin-top:1rem}
+.world{text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:1rem;padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:.4rem;color:var(--ink);min-width:0}
+.world:hover{border-color:var(--accent);transform:translateY(-2px)}
+.world .tag{font-family:var(--f-mono);font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.world .stars{font-size:1.5rem;letter-spacing:.15rem;color:var(--gold)} .world .stars .off{color:var(--line)}
+.world.arena{background:var(--head);color:var(--head-ink);border-color:var(--head)} .world.arena .tag{color:var(--gold)}
+.lamp{width:1rem;height:1rem;border-radius:50%;display:inline-block;margin-right:.4rem;background:var(--line)}
+/* world view */
+.crumbs{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:1.2rem 0 .8rem}
+.steps{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0 1rem}
+.step{background:var(--surface2);border:2px solid var(--line);color:var(--ink);border-radius:.8rem;padding:.5rem 1.1rem;font-weight:700}
+.step[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.step .ck{color:var(--good)} .step[aria-selected="true"] .ck{color:var(--accent-ink)}
+.formula{font-family:var(--f-mono);font-weight:700;font-size:1.25rem;background:var(--surface2);border-radius:.7rem;padding:.6rem .9rem;margin:.4rem 0;overflow-wrap:anywhere}
+.learn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:1rem}
+.eg{border-left:6px solid var(--gold);padding:.2rem 0 .2rem .9rem;margin-top:.6rem}
+/* build */
+.slotbox{display:flex;flex-direction:column;align-items:stretch;gap:.4rem;max-width:520px}
+.slot{min-height:3.4rem;border:3px dashed var(--line);border-radius:.8rem;display:flex;align-items:center;justify-content:center;padding:.3rem .8rem;text-align:center;font-weight:700;background:var(--surface)}
+.slot.over{border-color:var(--accent);background:var(--surface2)}
+.slot.filled{border-style:solid;border-color:var(--accent)}
+.slot.ok{border-color:var(--good);background:var(--good-bg);color:var(--good)}
+.slot.no{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+.vinc{height:5px;background:var(--ink);border-radius:3px}
+.chips{display:flex;flex-wrap:wrap;gap:.6rem;margin:.8rem 0}
+.chip{background:var(--accent);color:var(--accent-ink);border:0;border-radius:.7rem;padding:.55rem 1rem;font-weight:700;cursor:grab;user-select:none;touch-action:none}
+.chip.sel{outline:4px solid var(--gold)}
+.qrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:1rem;align-items:center;padding:1rem 0;border-top:2px solid var(--line)}
+@media(max-width:700px){.qrow{grid-template-columns:1fr}}
+/* lab */
+.co-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin:.4rem 0 1rem}
+.mission{background:var(--warn-bg);color:var(--ink);border:2px solid var(--gold);border-radius:1rem;padding:.8rem 1.1rem;margin-bottom:1rem}
+.mission.done{background:var(--good-bg);border-color:var(--good)}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:1.2rem;align-items:start}
+@media(max-width:900px){.lab{grid-template-columns:1fr}}
+.inp{display:grid;grid-template-columns:1fr auto;gap:.2rem .6rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
+.inp label{font-weight:700}
+.inp input[type=number]{width:7.2rem;font:inherit;font-family:var(--f-mono);font-weight:700;padding:.3rem .5rem;border:2px solid var(--line);border-radius:.6rem;background:var(--surface);color:var(--ink);text-align:right}
+.inp input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent);height:1.6rem}
+.derived{background:var(--surface2);border-radius:.8rem;padding:.6rem .9rem;margin:.6rem 0;font-size:.9rem}
+.derived b{font-family:var(--f-mono)}
+.rcard{border:2px solid var(--line);border-radius:1rem;padding:.9rem 1.1rem;background:var(--surface);margin-bottom:.9rem}
+.rcard.good{border-color:var(--good)} .rcard.warn{border-color:var(--warn)} .rcard.bad{border-color:var(--bad)}
+.rhead{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;flex-wrap:wrap}
+.rval{font-family:var(--f-mono);font-weight:700;font-size:2.4rem;line-height:1}
+.gauge{position:relative;height:1.1rem;border-radius:99px;display:flex;overflow:hidden;margin:.7rem 0 .3rem;border:2px solid var(--line)}
+.gauge span{display:block;height:100%}
+.gauge .z-good{background:var(--good)} .gauge .z-warn{background:#E0A020} .gauge .z-bad{background:var(--bad)}
+.pin{position:absolute;top:-.35rem;width:.35rem;height:1.8rem;background:var(--ink);border-radius:3px;transform:translateX(-50%);transition:left .35s;box-shadow:0 0 0 2px var(--surface)}
+.scale{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+.says{margin-top:.5rem;font-size:1rem}
+.says b{font-weight:700}
+/* quiz */
+.opt{display:block;width:100%;text-align:left;background:var(--surface);color:var(--ink);border:3px solid var(--line);border-radius:.9rem;padding:.7rem 1rem;margin:.5rem 0;font-weight:700}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt.right{border-color:var(--good);background:var(--good-bg);color:var(--good)} .opt.wrong{border-color:var(--bad);background:var(--bad-bg);color:var(--bad)}
+.scen{background:var(--surface2);border-radius:.8rem;padding:.7rem 1rem;font-size:1rem;margin:.5rem 0}
+/* arena */
+.tablewrap{overflow-x:auto;border:2px solid var(--line);border-radius:1rem;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:720px}
+th,td{padding:.55rem .8rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{background:var(--surface2);font-family:var(--f-display)}
+td.num{font-family:var(--f-mono);font-weight:700;white-space:nowrap}
+tr.grp td{background:var(--surface2);font-family:var(--f-display);font-weight:800}
+.best{outline:3px solid var(--gold);outline-offset:-3px}
+.agrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1rem;margin:1rem 0}
+.agrid .inp input[type=number]{width:6rem}
+/* toast + badges */
+#toasts{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:.5rem;z-index:40;align-items:flex-end}
+.toast{background:var(--head);color:var(--head-ink);border:3px solid var(--gold);border-radius:.9rem;padding:.6rem 1.1rem;font-weight:700;animation:pop .4s}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+.badges{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.6rem}
+.badge{border:2px solid var(--line);border-radius:.8rem;padding:.4rem .8rem;font-size:.85rem;color:var(--muted)}
+.badge.on{border-color:var(--gold);color:var(--ink);background:var(--warn-bg)}
+.nav2{display:flex;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-top:1.2rem}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<div id="hud" class="hud"></div><div class="wrap"><main id="app"></main></div><div id="toasts" aria-live="polite"></div><script>
+/* ===== DATA & ENGINE ===== */
+const FIELDS = [
+  // key, label, group, min, max, step
+  ['cash','Cash + bank','bs',0,200,1],['ms','Marketable securities','bs',0,100,1],['rec','Debtors (receivables)','bs',0,200,1],
+  ['inv','Closing stock','bs',0,250,1],['prepaid','Prepaid expenses','bs',0,50,1],['fa','Fixed assets','bs',0,500,5],
+  ['ap','Creditors (trade payables)','bs',0,200,1],['ocl','Other current liabilities','bs',0,100,1],['ltd','Long-term debt','bs',0,400,5],['sc','Share capital','bs',10,400,5],
+  ['sales','Net sales','pl',100,1500,10],['cashPct','Cash sales (% of sales)','pl',0,100,5],['cogs','Cost of goods sold','pl',50,1300,10],
+  ['opex','Operating expenses (cash)','pl',0,400,5],['dep','Depreciation (non-cash)','pl',0,100,1],['interest','Interest (finance cost)','pl',0,80,1],
+  ['openInv','Opening stock','pl',0,250,1],['openRec','Opening debtors','pl',0,200,1],['openAp','Opening creditors','pl',0,200,1],
+  ['shares','Equity shares (lakh)','mk',1,50,1],['price','Market price per share (Rs.)','mk',5,600,1],['dps','Dividend per share (Rs.)','mk',0,40,0.5]
+];
+const LBL = Object.fromEntries(FIELDS.map(f=>[f[0],f[1]]));
+const PRESETS = {
+  A:{name:'Sharma Retail',tag:'Everyday kirana chain',cash:20,ms:10,rec:30,inv:65,prepaid:5,fa:300,ap:55,ocl:30,ltd:120,sc:100,sales:600,cashPct:30,cogs:420,opex:95,dep:20,interest:12,openInv:50,openRec:28,openAp:50,shares:10,price:60,dps:3},
+  B:{name:'Verma Mart',tag:'Fast and lean',cash:30,ms:20,rec:20,inv:40,prepaid:5,fa:280,ap:45,ocl:15,ltd:40,sc:100,sales:700,cashPct:60,cogs:480,opex:90,dep:15,interest:4,openInv:38,openRec:22,openAp:40,shares:10,price:190,dps:8},
+  C:{name:'Kapoor Stores',tag:'Big and borrowed',cash:5,ms:0,rec:70,inv:110,prepaid:5,fa:300,ap:90,ocl:40,ltd:200,sc:100,sales:650,cashPct:10,cogs:470,opex:90,dep:30,interest:28,openInv:95,openRec:60,openAp:80,shares:10,price:45,dps:1}
+};
+const TAX = 0.25, CREDIT_PURCH = 0.8;
+function calc(c){
+  const o={};
+  o.CA=c.cash+c.ms+c.rec+c.inv+c.prepaid; o.CL=c.ap+c.ocl; o.TA=o.CA+c.fa; o.CE=o.TA-o.CL;
+  o.res=o.CE-c.ltd-c.sc; o.SF=c.sc+o.res;
+  o.GP=c.sales-c.cogs; o.EBIT=c.sales-c.cogs-c.opex-c.dep; o.PBT=o.EBIT-c.interest; o.PAT=o.PBT>0?o.PBT*(1-TAX):o.PBT;
+  o.creditSales=c.sales*(1-c.cashPct/100); o.purchases=Math.max(0,c.cogs+c.inv-c.openInv); o.creditPurch=o.purchases*CREDIT_PURCH;
+  o.dailyExp=(c.cogs+c.opex)/365; o.defAssets=c.cash+c.ms+c.rec;
+  o.avgInv=(c.inv+c.openInv)/2; o.avgRec=(c.rec+c.openRec)/2; o.avgAp=(c.ap+c.openAp)/2;
+  o.EPS=o.PAT/c.shares; o.BVPS=o.SF/c.shares;
+  const d=(a,b)=>b>0?a/b:NaN;
+  const v={};
+  v.current=d(o.CA,o.CL); v.quick=d(o.CA-c.inv-c.prepaid,o.CL); v.cashr=d(c.cash+c.ms,o.CL); v.bdi=d(o.defAssets,o.dailyExp);
+  v.stock=d(c.cogs,o.avgInv); v.dtr=d(o.creditSales,o.avgRec); v.acp=365/v.dtr; v.ctr=d(o.creditPurch,o.avgAp); v.app=365/v.ctr;
+  v.gp=d(o.GP,c.sales)*100; v.np=d(o.PAT,c.sales)*100; v.op=d(c.cogs+c.opex+c.dep,c.sales)*100;
+  v.roi=d(o.EBIT,o.CE)*100; v.roe=d(o.PAT,o.SF)*100; v.roa=d(o.PAT,o.TA)*100;
+  v.de=d(c.ltd,o.SF); v.gear=d(c.ltd,o.CE); v.eqr=d(o.SF,o.CE); v.ic=d(o.EBIT,c.interest>0?c.interest:NaN);
+  v.eps=o.EPS; v.pe=d(c.price,o.EPS); v.dy=d(c.dps,c.price)*100; v.bvps=o.BVPS; v.pb=d(c.price,o.BVPS);
+  return {o,v};
+}
+const f1=(n,d=2)=>Number.isFinite(n)?n.toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d}):'n/a';
+const FMT={x:n=>f1(n)+' : 1',times:n=>f1(n,1)+' times',pct:n=>f1(n,1)+'%',days:n=>f1(n,0)+' days',rs:n=>'Rs. '+f1(n),prop:n=>f1(n)};
+// zones: [upper bound, class, message]; last bound Infinity. lo/hi = gauge range.
+const Z=(arr)=>arr.map(a=>({to:a[0],cls:a[1],msg:a[2]}));
+const RATIOS = {
+  current:{n:'Current Ratio',w:'liq',f:'x',lo:0,hi:4,better:'mid',formula:'Current Assets / Current Liabilities',
+    mean:'Can the firm pay everything due within one year?',ex:'Assets that turn to cash in a year are Rs. 200. Bills due in a year are Rs. 100. Ratio = 200 / 100 = 2 : 1.',
+    num:'Current assets',den:'Current liabilities',levers:'cash, debtors, stock, creditors',
+    zones:Z([[1,'bad','below 1. Bills due this year are bigger than the assets that can pay them. Danger.'],[1.5,'warn','just above 1. Tight. One bad month could hurt.'],[3,'good','healthy. The classic comfort level is 2 : 1.'],[Infinity,'warn','above 3. Safe, but money may be sitting idle in stock or cash.']])},
+  quick:{n:'Quick (Acid Test) Ratio',w:'liq',f:'x',lo:0,hi:3,better:'mid',formula:'(Current Assets - Stock - Prepaid) / Current Liabilities',
+    mean:'Can the firm pay bills without selling any stock?',ex:'Current assets Rs. 200, stock Rs. 80, prepaid Rs. 20, current liabilities Rs. 100. Quick = (200 - 80 - 20) / 100 = 1 : 1.',
+    num:'Current assets - Stock - Prepaid',den:'Current liabilities',levers:'stock, prepaid, cash, debtors',
+    zones:Z([[0.5,'bad','below 0.5. Without selling stock the firm cannot pay its bills.'],[1,'warn','below 1. It depends on selling stock to pay bills.'],[2.5,'good','1 or more. Bills can be paid without selling stock.'],[Infinity,'warn','very high. Cash may be lying idle.']])},
+  cashr:{n:'Cash Ratio',w:'liq',f:'x',lo:0,hi:1.2,better:'mid',formula:'(Cash + Bank + Marketable Securities) / Current Liabilities',
+    mean:'How much of the bills can be paid today, from cash alone?',ex:'Cash Rs. 30, securities Rs. 10, current liabilities Rs. 100. Cash ratio = 40 / 100 = 0.40.',
+    num:'Cash + Securities',den:'Current liabilities',levers:'cash, securities, creditors',
+    zones:Z([[0.1,'bad','below 0.1. Almost no cash buffer.'],[0.2,'warn','low. Thin cash cushion.'],[0.6,'good','a solid cash cushion.'],[Infinity,'warn','above 0.6. Lots of cash. Could it earn more if invested?']])},
+  bdi:{n:'Basic Defense Interval',w:'liq',f:'days',lo:0,hi:150,better:'high',formula:'(Cash + Securities + Net Receivables) / Daily Operating Expenses',
+    mean:'For how many days can the firm run without any new money coming in?',ex:'Cash 1,00,000 + securities 50,000 + receivables 50,000 = 2,00,000. Daily expenses 5,000. BDI = 2,00,000 / 5,000 = 40 days.',
+    num:'Cash + Securities + Receivables',den:'Daily operating expenses',levers:'cash, debtors, costs',
+    zones:Z([[30,'bad','under 30 days. A single month without sales would break the firm.'],[60,'warn','30 to 60 days. Okay, but not much room.'],[Infinity,'good','60 days or more. A strong survival cushion.']])},
+  stock:{n:'Stock Turnover',w:'act',f:'times',lo:0,hi:16,better:'high',formula:'Cost of Goods Sold / Average Stock',
+    mean:'How many times is the stock sold and replaced in a year?',ex:'COGS Rs. 600. Opening stock 50, closing stock 70, average = 60. Turnover = 600 / 60 = 10 times.',
+    num:'Cost of goods sold',den:'Average stock',levers:'COGS, closing stock, opening stock',
+    zones:Z([[4,'bad','under 4 times. Stock sits on the shelf for too long.'],[7,'warn','average for a shop. Room to move stock faster.'],[Infinity,'good','7+ times. Stock moves fast. Little money is stuck on shelves.']])},
+  dtr:{n:'Debtors Turnover',w:'act',f:'times',lo:0,hi:30,better:'high',formula:'Net Credit Sales / Average Debtors',
+    mean:'How many times a year does the firm collect its dues from customers?',ex:'Credit sales Rs. 600. Opening debtors 40, closing 60, average 50. Turnover = 600 / 50 = 12 times.',
+    num:'Net credit sales',den:'Average debtors',levers:'sales, cash-sales %, debtors',
+    zones:Z([[6,'bad','under 6 times. Customers pay slowly.'],[10,'warn','moderate collection speed.'],[Infinity,'good','10+ times. Customers pay quickly.']])},
+  acp:{n:'Average Collection Period',w:'act',f:'days',lo:0,hi:120,better:'low',formula:'365 Days / Debtors Turnover',
+    mean:'How many days does a customer take to pay?',ex:'Debtors turnover is 12 times. 365 / 12 = about 30 days to collect.',
+    num:'365 days',den:'Debtors turnover',levers:'debtors, credit sales',
+    zones:Z([[30,'good','30 days or less. Quick collections.'],[60,'warn','30 to 60 days. Keep an eye on slow payers.'],[Infinity,'bad','over 60 days. Customers are paying very late.']])},
+  ctr:{n:'Creditors Turnover',w:'act',f:'times',lo:0,hi:20,better:'mid',formula:'Net Credit Purchases / Average Creditors',
+    mean:'How many times a year does the firm pay its suppliers?',ex:'Credit purchases Rs. 480. Average creditors Rs. 60. Turnover = 480 / 60 = 8 times.',
+    num:'Net credit purchases',den:'Average creditors',levers:'COGS, stock, creditors',
+    zones:Z([[4,'warn','under 4 times. Suppliers wait long. Risk of losing credit.'],[10,'good','a normal payment rhythm.'],[Infinity,'warn','paying very fast. The firm could use more supplier credit.']])},
+  app:{n:'Average Payment Period',w:'act',f:'days',lo:0,hi:150,better:'mid',formula:'365 Days / Creditors Turnover',
+    mean:'How many days does the firm take to pay its suppliers?',ex:'Creditors turnover is 8 times. 365 / 8 = about 46 days to pay.',
+    num:'365 days',den:'Creditors turnover',levers:'creditors, purchases',
+    zones:Z([[36,'warn','under 36 days. Paying suppliers faster than needed.'],[90,'good','36 to 90 days. A healthy use of supplier credit.'],[Infinity,'bad','over 90 days. Suppliers may stop giving credit.']])},
+  gp:{n:'Gross Profit Ratio',w:'pro',f:'pct',lo:0,hi:50,better:'high',formula:'(Gross Profit / Net Sales) x 100',
+    mean:'Out of every Rs. 100 of sales, how much is left after the cost of goods?',ex:'Sales Rs. 500, COGS Rs. 350. Gross profit = 150. Ratio = 150 / 500 x 100 = 30%.',
+    num:'Gross profit',den:'Net sales',levers:'sales, COGS',
+    zones:Z([[15,'bad','under 15%. Very thin margin on goods.'],[25,'warn','15 to 25%. Fair margin.'],[Infinity,'good','25% or more. Strong margin on every sale.']])},
+  np:{n:'Net Profit Ratio',w:'pro',f:'pct',lo:0,hi:20,better:'high',formula:'(Net Profit / Net Sales) x 100',
+    mean:'Out of every Rs. 100 of sales, how much is the final profit?',ex:'Sales Rs. 500, profit after all expenses and tax Rs. 40. Ratio = 40 / 500 x 100 = 8%.',
+    num:'Net profit (PAT)',den:'Net sales',levers:'sales, COGS, expenses, interest',
+    zones:Z([[3,'bad','under 3%. Almost nothing is left after costs.'],[7,'warn','3 to 7%. Okay for a shop, but it can improve.'],[Infinity,'good','7% or more. Healthy final profit.']])},
+  op:{n:'Operating Ratio',w:'pro',f:'pct',lo:70,hi:105,better:'low',formula:'((COGS + Operating Expenses) / Net Sales) x 100',
+    mean:'Out of Rs. 100 of sales, how much is spent on running the business?',ex:'Sales Rs. 500, COGS 350, other operating expenses 100. Ratio = 450 / 500 x 100 = 90%.',
+    num:'COGS + Operating expenses',den:'Net sales',levers:'COGS, opex, depreciation',
+    zones:Z([[92,'good','92% or less. Costs are under control.'],[97,'warn','92 to 97%. Costs are eating most of the sales.'],[Infinity,'bad','above 97%. Nearly every rupee of sales goes to costs.']])},
+  roi:{n:'Return on Investment (ROI)',w:'pro',f:'pct',lo:0,hi:40,better:'high',formula:'(Profit before Interest and Tax / Capital Employed) x 100',
+    mean:'How much does the whole long-term money earn?',ex:'PBIT Rs. 60, capital employed (total assets - current liabilities) Rs. 400. ROI = 60 / 400 x 100 = 15%.',
+    num:'PBIT',den:'Capital employed',levers:'sales, costs, assets',
+    zones:Z([[8,'bad','under 8%. Less than a bank deposit would give.'],[15,'warn','8 to 15%. Acceptable.'],[Infinity,'good','15% or more. Capital is working hard.']])},
+  roe:{n:'Return on Equity (ROE)',w:'pro',f:'pct',lo:0,hi:40,better:'high',formula:'(Profit after Tax / Shareholders Funds) x 100',
+    mean:'How much do the owners earn on their own money?',ex:'PAT Rs. 30, share capital 100 + reserves 50 = Rs. 150. ROE = 30 / 150 x 100 = 20%.',
+    num:'Profit after tax',den:'Shareholders funds',levers:'profit, reserves, share capital',
+    zones:Z([[8,'bad','under 8%. Owners earn little.'],[15,'warn','8 to 15%. Fair return.'],[Infinity,'good','15% or more. Owners are well rewarded. Check it is not only because of heavy debt.']])},
+  roa:{n:'Return on Assets (ROA)',w:'pro',f:'pct',lo:0,hi:20,better:'high',formula:'(Profit after Tax / Total Assets) x 100',
+    mean:'How much profit does each rupee of assets create?',ex:'PAT Rs. 30, total assets Rs. 300. ROA = 30 / 300 x 100 = 10%.',
+    num:'Profit after tax',den:'Total assets',levers:'profit, assets',
+    zones:Z([[4,'bad','under 4%. Assets create little profit.'],[8,'warn','4 to 8%. Fair use of assets.'],[Infinity,'good','8% or more. Assets are used well.']])},
+  de:{n:'Debt-Equity Ratio',w:'sol',f:'prop',lo:0,hi:3,better:'low',formula:'Long-term Debt / Shareholders Funds',
+    mean:'For every Re. 1 of owners money, how many rupees are borrowed?',ex:'Long-term debt Rs. 100, shareholders funds Rs. 200. D/E = 100 / 200 = 0.5.',
+    num:'Long-term debt',den:'Shareholders funds',levers:'long-term debt, share capital, reserves',
+    zones:Z([[1,'good','1 or below. Owners fund at least as much as lenders.'],[2,'warn','1 to 2. Borrowing is high. Interest burden grows.'],[Infinity,'bad','above 2. Heavily borrowed. Lenders hold most of the risk.']])},
+  gear:{n:'Capital Gearing Ratio',w:'sol',f:'prop',lo:0,hi:1,better:'low',formula:'Total Debt / Capital Employed',
+    mean:'What share of long-term capital is borrowed?',ex:'Debt Rs. 150, capital employed Rs. 300. Gearing = 150 / 300 = 0.50, so half is borrowed.',
+    num:'Total debt',den:'Capital employed',levers:'debt, assets, current liabilities',
+    zones:Z([[0.5,'good','under 0.5. Low gearing. Mostly owner-funded.'],[0.7,'warn','0.5 to 0.7. Highly geared.'],[Infinity,'bad','above 0.7. Dangerously geared.']])},
+  eqr:{n:'Equity (Proprietary) Ratio',w:'sol',f:'prop',lo:0,hi:1,better:'high',formula:'Shareholders Funds / Capital Employed',
+    mean:'What share of long-term capital belongs to the owners?',ex:'Shareholders funds Rs. 150, capital employed Rs. 300. Ratio = 0.50.',
+    num:'Shareholders funds',den:'Capital employed',levers:'debt, share capital, reserves',
+    zones:Z([[0.3,'bad','under 0.3. Owners have very little stake.'],[0.5,'warn','0.3 to 0.5. Moderate owner stake.'],[Infinity,'good','0.5 or more. Strong owner backing.']])},
+  ic:{n:'Interest Coverage Ratio',w:'sol',f:'times',lo:0,hi:12,better:'high',formula:'Profit before Interest and Tax / Total Interest',
+    mean:'How many times can profit pay the interest bill?',ex:'PBIT Rs. 60, interest Rs. 15. Coverage = 60 / 15 = 4 times.',
+    num:'PBIT',den:'Interest (finance cost)',levers:'profit, interest',
+    zones:Z([[1.5,'bad','under 1.5 times. Interest is barely covered.'],[3,'warn','1.5 to 3 times. Adequate, but not comfortable.'],[Infinity,'good','3+ times. Interest is paid with room to spare.']])},
+  eps:{n:'Earnings per Share (EPS)',w:'mkt',f:'rs',lo:0,hi:15,better:'high',formula:'Profit after Tax / Number of Equity Shares',
+    mean:'How much profit belongs to each share?',ex:'PAT Rs. 50 lakh, 10 lakh shares. EPS = 50 / 10 = Rs. 5.',
+    num:'Profit after tax',den:'Number of shares',levers:'profit, number of shares',
+    zones:Z([[0,'bad','negative. The firm is making a loss per share.'],[Infinity,'good','positive. Each share earns a profit.']])},
+  pe:{n:'Price to Earnings (PE)',w:'mkt',f:'times',lo:0,hi:40,better:'mid',formula:'Market Price per Share / EPS',
+    mean:'How many years of earnings do investors pay for the share?',ex:'Price Rs. 100, EPS Rs. 5. PE = 100 / 5 = 20 times.',
+    num:'Market price per share',den:'EPS',levers:'price, profit',
+    zones:Z([[10,'warn','under 10. Cheap, or the market doubts growth.'],[25,'good','10 to 25. A normal, fair price for the earnings.'],[Infinity,'warn','above 25. Expensive. Investors expect high growth.']])},
+  dy:{n:'Dividend Yield',w:'mkt',f:'pct',lo:0,hi:8,better:'mid',formula:'(Dividend per Share / Market Price) x 100',
+    mean:'What cash return does a shareholder get each year, as % of the price?',ex:'Dividend Rs. 4, price Rs. 100. Yield = 4 / 100 x 100 = 4%.',
+    num:'Dividend per share',den:'Market price',levers:'dividend, price',
+    zones:Z([[1,'warn','under 1%. Little cash comes back to investors.'],[5,'good','1 to 5%. A good regular cash return.'],[Infinity,'warn','above 5%. High. Check it can be paid every year.']])},
+  bvps:{n:'Book Value per Share',w:'mkt',f:'rs',lo:0,hi:200,better:'high',formula:'Net Assets / Number of Equity Shares',
+    mean:'If the firm closed today, what would each share get from the books?',ex:'Net assets Rs. 200 lakh, 10 lakh shares. Book value = Rs. 20 per share.',
+    num:'Net assets',den:'Number of shares',levers:'reserves, share capital, shares',
+    zones:Z([[0,'bad','negative. Liabilities are bigger than assets.'],[Infinity,'good','positive. The books show value for each share.']])},
+  pb:{n:'Price to Book Value (PB)',w:'mkt',f:'times',lo:0,hi:6,better:'mid',formula:'Market Price per Share / Book Value per Share',
+    mean:'How many times book value is the market willing to pay?',ex:'Price Rs. 60, book value Rs. 30. PB = 2 times.',
+    num:'Market price per share',den:'Book value per share',levers:'price, reserves',
+    zones:Z([[1,'warn','under 1. The market values the firm below its books.'],[3,'good','1 to 3. A fair premium over book value.'],[Infinity,'warn','above 3. A rich premium over book value.']])}
+};
+function zoneOf(id,val){const r=RATIOS[id];if(!Number.isFinite(val))return {cls:'info',msg:'cannot be worked out with these numbers. Check that the bottom number is not zero.'};
+  for(const z of r.zones){if(val<z.to)return z} return r.zones[r.zones.length-1]}
+const WORLDS = [
+  {id:'liq',name:'Liquidity Lagoon',tag:'Short-term safety',blurb:'Can the firm pay its bills this year?',ids:['current','quick','cashr','bdi'],co:'A',
+    pool:['Current assets','Current liabilities','Current assets - Stock - Prepaid','Cash + Securities','Cash + Securities + Receivables','Daily operating expenses','Total assets','Net sales','Annual profit'],
+    build:[['current','Current assets','Current liabilities'],['quick','Current assets - Stock - Prepaid','Current liabilities'],['cashr','Cash + Securities','Current liabilities'],['bdi','Cash + Securities + Receivables','Daily operating expenses']],
+    fields:['cash','ms','rec','inv','prepaid','ap','ocl'],
+    mission:{co:'A',text:'Sharma Retail is tight on cash. Lift its Current Ratio to 1.8 or more and its Quick Ratio to 1.0 or more.',test:v=>v.current>=1.8&&v.quick>=1.0,hint:'Try adding cash, or reducing creditors and other current liabilities.',xp:60}},
+  {id:'act',name:'Activity Avenue',tag:'Speed of business',blurb:'How fast do stock, customers and suppliers move?',ids:['stock','dtr','acp','ctr','app'],co:'A',
+    pool:['Cost of goods sold','Average stock','Net credit sales','Average debtors','Net credit purchases','Average creditors','365 days','Debtors turnover','Creditors turnover','Net sales'],
+    build:[['stock','Cost of goods sold','Average stock'],['dtr','Net credit sales','Average debtors'],['acp','365 days','Debtors turnover'],['ctr','Net credit purchases','Average creditors'],['app','365 days','Creditors turnover']],
+    fields:['sales','cashPct','cogs','inv','openInv','rec','openRec','ap','openAp'],
+    mission:{co:'A',text:'Make Sharma Retail faster. Reach Stock Turnover of 9 times or more and a collection period of 20 days or less.',test:v=>v.stock>=9&&v.acp<=20,hint:'Hold less closing stock, and raise the share of cash sales.',xp:60}},
+  {id:'pro',name:'Profit Peak',tag:'Earning power',blurb:'How much does the firm keep from each rupee of sales?',ids:['gp','np','op','roi','roe','roa'],co:'A',
+    pool:['Gross profit','Net profit (PAT)','Net sales','PBIT','Capital employed','Shareholders funds','Total assets','COGS + Operating expenses','Total debt'],
+    build:[['gp','Gross profit','Net sales'],['np','Net profit (PAT)','Net sales'],['op','COGS + Operating expenses','Net sales'],['roi','PBIT','Capital employed'],['roe','Net profit (PAT)','Shareholders funds'],['roa','Net profit (PAT)','Total assets']],
+    fields:['sales','cogs','opex','dep','interest','fa','sc'],
+    mission:{co:'A',text:'Sharma Retail earns only about 7 paise per rupee of sales. Raise the Net Profit Ratio to 9% or more.',test:v=>v.np>=9,hint:'Lower the cost of goods or operating expenses, or raise sales.',xp:60}},
+  {id:'sol',name:'Solvency Summit',tag:'Long-term strength',blurb:'Can the firm survive its debt for years?',ids:['de','gear','eqr','ic'],co:'C',
+    pool:['Long-term debt','Shareholders funds','Total debt','Capital employed','PBIT','Interest (finance cost)','Net sales','Total assets'],
+    build:[['de','Long-term debt','Shareholders funds'],['gear','Total debt','Capital employed'],['eqr','Shareholders funds','Capital employed'],['ic','PBIT','Interest (finance cost)']],
+    fields:['ltd','sc','fa','ap','ocl','sales','cogs','opex','interest'],
+    mission:{co:'C',text:'Kapoor Stores is over-borrowed. Bring its Debt-Equity Ratio to 1.0 or less and its Interest Coverage to 3 times or more.',test:v=>v.de<=1&&v.ic>=3,hint:'Cut long-term debt, and lower the interest figure to match.',xp:60}},
+  {id:'mkt',name:'Market Mountain',tag:'What investors see',blurb:'How does the stock market judge the firm?',ids:['eps','pe','dy','bvps','pb'],co:'B',
+    pool:['Profit after tax','Number of shares','Market price per share','EPS','Dividend per share','Market price','Net assets','Book value per share','Net sales'],
+    build:[['eps','Profit after tax','Number of shares'],['pe','Market price per share','EPS'],['dy','Dividend per share','Market price'],['bvps','Net assets','Number of shares'],['pb','Market price per share','Book value per share']],
+    fields:['price','dps','shares','sales','cogs','opex','sc'],
+    mission:{co:'B',text:'Verma Mart looks expensive. Bring its PE ratio down to 15 or below, and keep the dividend yield between 1% and 5%.',test:v=>v.pe<=15&&v.dy>=1&&v.dy<=5,hint:'Lower the market price, then trim the dividend per share so the yield does not jump above 5%.',xp:60}}
+];
+const WBY=Object.fromEntries(WORLDS.map(w=>[w.id,w]));
+const QUIZ = {
+  liq:[
+    {s:'A shop has current assets Rs. 150 and current liabilities Rs. 50.',q:'What is its current ratio, and what does it say?',o:['3 : 1. Safe, but check for idle money','0.33 : 1. Danger','1 : 1. Just enough'],a:0,why:'150 / 50 = 3. Above 3 is safe, but stock or cash may be sitting idle.'},
+    {s:'Two shops both have a current ratio of 2 : 1. Shop X holds mostly cash. Shop Y holds mostly unsold stock.',q:'Which test shows Shop Y is weaker?',o:['Debtors turnover','Quick ratio','Dividend yield'],a:1,why:'The quick ratio removes stock. Shop Y falls sharply, Shop X stays strong.'},
+    {s:'Defensive assets are Rs. 2,00,000. Daily operating expenses are Rs. 5,000.',q:'How long can the firm run with no new sales?',o:['25 days','40 days','400 days'],a:1,why:'BDI = 2,00,000 / 5,000 = 40 days.'}],
+  act:[
+    {s:'Shop P collects from customers in 25 days. Shop Q takes 75 days.',q:'Who has the better collection speed, and why?',o:['Shop P. Cash comes in sooner','Shop Q. Customers are given more time','Both are the same'],a:0,why:'A shorter collection period means cash returns faster and fewer bad debts.'},
+    {s:'COGS is Rs. 600. Average stock is Rs. 100.',q:'What is the stock turnover and the meaning?',o:['0.17 times. Very slow','6 times. Stock is replaced 6 times a year','600 times. Very fast'],a:1,why:'600 / 100 = 6 times. Roughly one new stock cycle every 2 months.'},
+    {s:'Debtors turnover is 10 times.',q:'What is the average collection period?',o:['10 days','36.5 days','365 days'],a:1,why:'365 / 10 = 36.5 days.'}],
+  pro:[
+    {s:'Sales Rs. 500, COGS Rs. 350.',q:'What is the gross profit ratio?',o:['30%','70%','150%'],a:0,why:'Gross profit 150 / sales 500 x 100 = 30%.'},
+    {s:'A firm earns a gross margin of 35%, but its net profit ratio is only 2%.',q:'What is the most likely problem?',o:['COGS is too low','Operating expenses or interest are too high','Sales are too high'],a:1,why:'The margin on goods is fine. Expenses below gross profit are eating it up.'},
+    {s:'Operating ratio of a firm moves from 88% to 96%.',q:'What happened?',o:['Costs rose as a share of sales. Profit shrank','Profit improved','Nothing changed'],a:0,why:'A higher operating ratio means more of every sales rupee goes to costs.'}],
+  sol:[
+    {s:'Debt Rs. 300, shareholders funds Rs. 100.',q:'What is the debt-equity ratio and the verdict?',o:['0.33. Very safe','3. Heavily borrowed','1. Balanced'],a:1,why:'300 / 100 = 3. For every Re. 1 of owners money there are Rs. 3 of debt.'},
+    {s:'PBIT is Rs. 90. Interest is Rs. 60.',q:'What is the interest coverage and the verdict?',o:['0.67 times. Safe','1.5 times. Barely covered','6 times. Comfortable'],a:1,why:'90 / 60 = 1.5 times. A small drop in profit and the firm cannot pay interest.'},
+    {s:'A bank is deciding whether to lend more money to a firm.',q:'Which ratio group matters most to the bank?',o:['Market test ratios','Solvency and liquidity ratios','Only the gross profit ratio'],a:1,why:'Lenders care about being repaid, so solvency and liquidity come first.'}],
+  mkt:[
+    {s:'Price Rs. 100, EPS Rs. 5.',q:'What is the PE ratio?',o:['20 times','5 times','0.05 times'],a:0,why:'100 / 5 = 20 times. Investors pay 20 years of earnings.'},
+    {s:'Price Rs. 60, book value per share Rs. 30.',q:'What is the PB ratio and meaning?',o:['0.5. Trading below book value','2. The market pays double the book value','30. Very cheap'],a:1,why:'60 / 30 = 2 times book value.'},
+    {s:'Dividend Rs. 4 per share. Price Rs. 100.',q:'What is the dividend yield?',o:['4%','25%','0.04%'],a:0,why:'4 / 100 x 100 = 4%. A good regular cash return.'}]
+};
+const LEVELS=[[0,'Intern'],[100,'Trainee Analyst'],[250,'Analyst'],[450,'Senior Analyst'],[700,'Finance Manager'],[1000,'CFO']];
+const BADGES=[['first','First Formula','Build your first formula correctly'],['liq','Liquidity Guardian','Finish Liquidity Lagoon'],['act','Speed Champion','Finish Activity Avenue'],['pro','Profit Hunter','Finish Profit Peak'],['sol','Debt Detective','Finish Solvency Summit'],['mkt','Market Maven','Finish Market Mountain'],['arena','Arena Champion','Win both Arena decisions']];
+/* ===== STATE ===== */
+const KEY='ratioquest-v1';
+const S={xp:0,done:{},badges:{},cos:{},view:'home',step:'learn',co:'A',sel:null,placed:{},q:{i:0,score:0,streak:0,ans:null}};
+function resetCo(k){S.cos[k]=Object.assign({},PRESETS[k]);}
+['A','B','C'].forEach(resetCo);
+try{const raw=localStorage.getItem(KEY);if(raw){const j=JSON.parse(raw);S.xp=j.xp||0;S.done=j.done||{};S.badges=j.badges||{};}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({xp:S.xp,done:S.done,badges:S.badges}))}catch(e){}}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+function lvl(){let i=0;LEVELS.forEach((l,k)=>{if(S.xp>=l[0])i=k});return i}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;$('#toasts').appendChild(d);setTimeout(()=>d.remove(),3200)}
+function award(xp,why){const before=lvl();S.xp+=xp;toast('+'+xp+' XP  '+why);if(lvl()>before)setTimeout(()=>toast('Level up! You are now '+LEVELS[lvl()][1]),600);save();hud()}
+function badge(id){if(S.badges[id])return;S.badges[id]=1;const b=BADGES.find(x=>x[0]===id);toast('Badge unlocked: '+b[1]);save()}
+function hud(){const L=lvl(),a=LEVELS[L][0],b=LEVELS[L+1]?LEVELS[L+1][0]:a+1;const pct=LEVELS[L+1]?Math.min(100,(S.xp-a)/(b-a)*100):100;
+  $('#hud').innerHTML='<div class="hud-in"><button class="brand" data-act="home">Ratio<span>Quest</span></button><div class="xp"><div class="xp-top"><b>'+LEVELS[L][1]+'</b><span class="mono">'+S.xp+' XP'+(LEVELS[L+1]?' / next '+b:' / max')+'</span></div><div class="bar"><i style="width:'+pct+'%"></i></div></div><button class="hud-btn" data-act="reset">Reset progress</button></div>'}
+function stars(w){const d=S.done;return (d[w+':build']?1:0)+(d[w+':lab']?1:0)+((d[w+':quiz']||0)>=2?1:0)}
+function ratioVals(k){return calc(S.cos[k])}
+const PARTS=(c,o,v)=>({current:[o.CA,o.CL],quick:[o.CA-c.inv-c.prepaid,o.CL],cashr:[c.cash+c.ms,o.CL],bdi:[o.defAssets,o.dailyExp],stock:[c.cogs,o.avgInv],dtr:[o.creditSales,o.avgRec],acp:[365,v.dtr],ctr:[o.creditPurch,o.avgAp],app:[365,v.ctr],gp:[o.GP,c.sales],np:[o.PAT,c.sales],op:[c.cogs+c.opex+c.dep,c.sales],roi:[o.EBIT,o.CE],roe:[o.PAT,o.SF],roa:[o.PAT,o.TA],de:[c.ltd,o.SF],gear:[c.ltd,o.CE],eqr:[o.SF,o.CE],ic:[o.EBIT,c.interest],eps:[o.PAT,c.shares],pe:[c.price,o.EPS],dy:[c.dps,c.price],bvps:[o.SF,c.shares],pb:[c.price,o.BVPS]});
+const WORD={good:'Healthy',warn:'Watch',bad:'Danger',info:'n/a'};
+
+/* ===== HOME ===== */
+function home(){
+  const total=WORLDS.length*3, got=WORLDS.reduce((a,w)=>a+stars(w.id),0);
+  let h='<div class="hero"><h1>Ratio Quest</h1><p>Play with the numbers of three real-feeling shops. Drag formulas, change the figures, and watch what the ratios say about each business.</p></div>';
+  h+='<div class="map">'+WORLDS.map((w,i)=>{const s=stars(w.id);return '<button class="world" data-act="world" data-id="'+w.id+'"><span class="tag">World '+(i+1)+' &middot; '+w.tag+'</span><h3>'+w.name+'</h3><span class="muted">'+w.blurb+'</span><span class="stars" aria-label="'+s+' of 3 stars">'+[0,1,2].map(k=>'<span class="'+(k<s?'':'off')+'">&#9733;</span>').join('')+'</span></button>'}).join('');
+  h+='<button class="world arena" data-act="arena"><span class="tag">Final level &middot; Compare competitors</span><h3>The Arena</h3><span>Three shops side by side. Who would you lend to? Who would you invest in?</span><span class="stars">'+(S.done.arenaL?'&#9733;':'&#9734;')+(S.done.arenaI?'&#9733;':'&#9734;')+'</span></button></div>';
+  h+='<div class="card" style="margin-top:1.2rem"><h3>Your progress: '+got+' of '+total+' stars</h3><p class="muted">Each world gives 3 stars: build the formulas, finish the mission in the lab, and score 2 of 3 in the quiz.</p><div class="badges">'+BADGES.map(b=>'<span class="badge '+(S.badges[b[0]]?'on':'')+'" title="'+b[2]+'">'+(S.badges[b[0]]?'&#9733; ':'')+b[1]+'</span>').join('')+'</div></div>';
+  return h}
+
+/* ===== WORLD ===== */
+function world(){
+  const w=WBY[S.view], steps=[['learn','1. Learn'],['build','2. Build'],['lab','3. Lab'],['quiz','4. Quiz']];
+  const ck={learn:S.done[w.id+':learn'],build:S.done[w.id+':build'],lab:S.done[w.id+':lab'],quiz:(S.done[w.id+':quiz']||0)>=2};
+  let h='<div class="crumbs"><button class="btn alt" data-act="home">&larr; Map</button><h2>'+w.name+'</h2></div>';
+  h+='<div class="steps" role="tablist">'+steps.map(s=>'<button class="step" role="tab" aria-selected="'+(S.step===s[0])+'" data-act="step" data-id="'+s[0]+'">'+s[1]+(ck[s[0]]?' <span class="ck">&#10003;</span>':'')+'</button>').join('')+'</div>';
+  h+='<div id="stepbody">'+({learn:learn,build:build,lab:lab,quiz:quiz}[S.step])(w)+'</div>';
+  return h}
+function learn(w){
+  let h='<div class="learn-grid">'+w.ids.map(id=>{const r=RATIOS[id];return '<div class="card"><h3>'+r.n+'</h3><p class="muted">'+r.mean+'</p><div class="formula">'+esc(r.formula)+'</div><div class="eg"><b>Easy example.</b> '+esc(r.ex)+'</div></div>'}).join('')+'</div>';
+  h+='<div class="nav2"><span></span><button class="btn" data-act="step" data-id="build">Next: Build the formulas &rarr;</button></div>';
+  if(!S.done[w.id+':learn']){S.done[w.id+':learn']=1;save()}
+  return h}
+
+/* ===== BUILD (drag & drop) ===== */
+function build(w){
+  const pl=S.placed;
+  let h='<p>Drag a card into the top (numerator) and bottom (denominator) boxes. On a phone or tablet, tap a card first, then tap a box.</p><div class="chips" id="pool">'+w.pool.map(t=>'<button class="chip" draggable="true" data-chip="'+esc(t)+'" data-act="chip">'+esc(t)+'</button>').join('')+'</div>';
+  h+=w.build.map(b=>{const id=b[0],r=RATIOS[id],p=pl[id]||{},ok=S.done['b:'+id],full=p.num&&p.den,right=full&&p.num===b[1]&&p.den===b[2];
+    const cls=(s,val,ans)=>'slot'+(val?' filled':'')+(ok?' ok':(full?(right?' ok':' no'):''));
+    let res='';
+    if(ok){const c=S.cos.A,k=calc(c);res='<p><b class="mono">'+FMT[r.f](k.v[id])+'</b> for Sharma Retail. '+zoneOf(id,k.v[id]).msg+'</p>'}
+    else if(full&&!right)res='<p class="bad pill">Not quite. Tap a box to clear it and try again.</p>';
+    return '<div class="qrow"><div><h3>'+r.n+'</h3><p class="muted">'+r.mean+'</p>'+res+'</div><div class="slotbox"><div class="'+cls('n',p.num)+'" data-slot="num" data-ratio="'+id+'">'+(p.num?esc(p.num):'drop numerator here')+'</div><div class="vinc"></div><div class="'+cls('d',p.den)+'" data-slot="den" data-ratio="'+id+'">'+(p.den?esc(p.den):'drop denominator here')+'</div></div></div>'}).join('');
+  const all=w.build.every(b=>S.done['b:'+b[0]]);
+  h+='<div class="nav2"><button class="btn alt" data-act="step" data-id="learn">&larr; Learn</button><button class="btn" data-act="step" data-id="lab">'+(all?'Next: Open the Lab &rarr;':'Skip to the Lab &rarr;')+'</button></div>';
+  return h}
+function place(id,slot,text){
+  const w=WBY[S.view],b=w.build.find(x=>x[0]===id);if(!b)return;
+  const p=S.placed[id]||(S.placed[id]={});p[slot]=text;
+  if(p.num&&p.den&&p.num===b[1]&&p.den===b[2]&&!S.done['b:'+id]){S.done['b:'+id]=1;award(15,RATIOS[id].n+' built');badge('first');
+    if(w.build.every(x=>S.done['b:'+x[0]])&&!S.done[w.id+':build']){S.done[w.id+':build']=1;setTimeout(()=>award(30,'All formulas in '+w.name+' built'),500)}save()}
+  rerender()}
+document.addEventListener('dragstart',e=>{const c=e.target.closest('[data-chip]');if(c){e.dataTransfer.setData('text/plain',c.dataset.chip);e.dataTransfer.effectAllowed='copy'}});
+document.addEventListener('dragover',e=>{const s=e.target.closest('[data-slot]');if(s){e.preventDefault();s.classList.add('over')}});
+document.addEventListener('dragleave',e=>{const s=e.target.closest('[data-slot]');if(s)s.classList.remove('over')});
+document.addEventListener('drop',e=>{const s=e.target.closest('[data-slot]');if(s){e.preventDefault();const t=e.dataTransfer.getData('text/plain');if(t&&!S.done['b:'+s.dataset.ratio])place(s.dataset.ratio,s.dataset.slot,t)}});
+
+/* ===== LAB ===== */
+function inputsHTML(k,keys,pre){
+  return keys.map(key=>{const f=FIELDS.find(x=>x[0]===key),c=S.cos[k];
+    return '<div class="inp"><label for="'+pre+key+'">'+f[1]+'</label><input type="number" id="'+pre+key+'" data-co="'+k+'" data-key="'+key+'" value="'+c[key]+'" min="'+f[3]+'" step="'+f[5]+'"><input type="range" id="'+pre+key+'r" data-co="'+k+'" data-key="'+key+'" data-r="1" min="'+f[3]+'" max="'+Math.max(f[4],c[key])+'" step="'+f[5]+'" value="'+c[key]+'" aria-label="'+f[1]+' slider"></div>'}).join('')}
+function lab(w){
+  const m=w.mission,c=S.cos[S.co],done=S.done[w.id+':lab'];
+  let h='<div class="mission '+(done?'done':'')+'"><b>'+(done?'Mission complete. ':'Mission on '+PRESETS[m.co].name+'. ')+'</b>'+m.text+(done?'':' <span class="muted">Hint: '+m.hint+'</span>')+'</div>';
+  h+='<div class="co-tabs">'+['A','B','C'].map(k=>'<button class="step" aria-selected="'+(S.co===k)+'" data-act="co" data-id="'+k+'">'+PRESETS[k].name+'</button>').join('')+'<button class="btn alt" data-act="resetco">Reset this shop</button></div>';
+  const rest=FIELDS.map(f=>f[0]).filter(k=>!w.fields.includes(k));
+  h+='<p class="muted">Amounts are in Rs. lakh. Change a number or drag a slider. The ratios on the right update at once.</p>';
+  h+='<div class="lab"><div class="card"><h3>Change the numbers</h3><div id="derived"></div>'+inputsHTML(S.co,w.fields,'f-')+'<details style="margin-top:.8rem"><summary><b>More numbers</b></summary>'+inputsHTML(S.co,rest,'g-')+'</details></div><div id="rcards"></div></div>';
+  h+='<div class="nav2"><button class="btn alt" data-act="step" data-id="build">&larr; Build</button><button class="btn" data-act="step" data-id="quiz">Next: Quiz &rarr;</button></div>';
+  return h}
+function gauge(id,val){
+  const r=RATIOS[id];let prev=r.lo,segs='';
+  r.zones.forEach(z=>{const to=Math.min(z.to,r.hi);if(to>prev){segs+='<span class="z-'+z.cls+'" style="width:'+((to-prev)/(r.hi-r.lo)*100)+'%"></span>';prev=to}});
+  const pos=Number.isFinite(val)?Math.max(0,Math.min(1,(val-r.lo)/(r.hi-r.lo)))*100:0;
+  return '<div class="gauge" role="img" aria-label="gauge">'+segs+'<div class="pin" style="left:'+pos+'%"></div></div><div class="scale"><span>'+r.lo+'</span><span>'+r.hi+'+</span></div>'}
+function cardHTML(id,c,k,tag){
+  const r=RATIOS[id],val=k.v[id],z=zoneOf(id,val),p=PARTS(c,k.o,k.v)[id];
+  return '<div class="rcard '+z.cls+'"><div class="rhead"><div><b>'+r.n+'</b><div class="muted" style="font-size:.8rem">'+esc(r.formula)+'</div></div><span class="pill '+z.cls+'">'+WORD[z.cls]+'</span></div>'
+   +'<div class="rhead" style="margin-top:.4rem"><span class="rval">'+FMT[r.f](val)+'</span><span class="mono muted">'+f1(p[0],1)+' &divide; '+f1(p[1],1)+'</span></div>'+gauge(id,val)
+   +'<div class="says"><b>What it says:</b> '+(tag||'')+'At '+FMT[r.f](val)+', this is '+z.msg+'</div></div>'}
+function updateLab(){
+  const w=WBY[S.view];if(!w||S.step!=='lab')return;
+  const c=S.cos[S.co],k=calc(c);
+  $('#rcards').innerHTML=w.ids.map(id=>cardHTML(id,c,k)).join('');
+  const o=k.o;
+  $('#derived').innerHTML='<div class="derived">Current assets <b>'+f1(o.CA,0)+'</b> &middot; Current liabilities <b>'+f1(o.CL,0)+'</b> &middot; Total assets <b>'+f1(o.TA,0)+'</b><br>Capital employed <b>'+f1(o.CE,0)+'</b> &middot; Shareholders funds <b>'+f1(o.SF,0)+'</b> (reserves balance automatically)<br>Gross profit <b>'+f1(o.GP,0)+'</b> &middot; PBIT <b>'+f1(o.EBIT,0)+'</b> &middot; Profit after tax <b>'+f1(o.PAT,1)+'</b></div>';
+  const m=w.mission;
+  if(!S.done[w.id+':lab']&&m.test(calc(S.cos[m.co]).v)){S.done[w.id+':lab']=1;save();award(m.xp,'Mission complete');checkWorld(w);const el=document.querySelector('.mission');if(el){el.classList.add('done');el.innerHTML='<b>Mission complete.</b> '+m.text}}
+}
+function checkWorld(w){if(S.done[w.id+':build']&&S.done[w.id+':lab']&&(S.done[w.id+':quiz']||0)>=2)badge(w.id)}
+document.addEventListener('input',e=>{
+  const t=e.target;if(!t.dataset||!t.dataset.key)return;
+  let v=parseFloat(t.value);if(!Number.isFinite(v))v=0;
+  S.cos[t.dataset.co][t.dataset.key]=v;
+  const id=t.id.replace(/r$/,''),twin=t.dataset.r?document.getElementById(id):document.getElementById(id+'r');
+  if(twin){if(!t.dataset.r){twin.max=Math.max(twin.max,v);} twin.value=v}
+  if(S.view==='arena')arenaUpdate();else updateLab()});
+
+/* ===== QUIZ ===== */
+function quiz(w){
+  const Q=QUIZ[w.id],q=S.q;
+  if(q.i>=Q.length){
+    const best=Math.max(S.done[w.id+':quiz']||0,q.score);
+    return '<div class="card"><h2>Quiz finished: '+q.score+' of '+Q.length+'</h2><p>'+(q.score>=2?'You earned the quiz star.':'Score 2 or more to earn the star. Try again.')+'</p><div class="nav2"><button class="btn alt" data-act="qretry">Play again</button><button class="btn" data-act="home">Back to the map</button></div></div>'}
+  const it=Q[q.i];
+  let h='<div class="card"><span class="pill info">Question '+(q.i+1)+' of '+Q.length+(q.streak>1?' &middot; streak x'+q.streak:'')+'</span><div class="scen">'+esc(it.s)+'</div><h3>'+esc(it.q)+'</h3>';
+  h+=it.o.map((t,i)=>'<button class="opt '+(q.ans!==null?(i===it.a?'right':(i===q.ans?'wrong':'')):'')+'" data-act="ans" data-id="'+i+'" '+(q.ans!==null?'disabled':'')+'>'+esc(t)+'</button>').join('');
+  if(q.ans!==null)h+='<p><b>'+(q.ans===it.a?'Correct. ':'Not this time. ')+'</b>'+esc(it.why)+'</p><button class="btn" data-act="qnext">'+(q.i+1>=Q.length?'See result':'Next question')+' &rarr;</button>';
+  return h+'</div>'}
+function answer(i){
+  const w=WBY[S.view],it=QUIZ[w.id][S.q.i];if(S.q.ans!==null)return;
+  S.q.ans=i;if(i===it.a){S.q.score++;S.q.streak++;award(20+(S.q.streak>1?5*(S.q.streak-1):0),S.q.streak>1?'Streak bonus':'Correct')}else S.q.streak=0;rerender()}
+function qnext(){const w=WBY[S.view];S.q.i++;S.q.ans=null;
+  if(S.q.i>=QUIZ[w.id].length){S.done[w.id+':quiz']=Math.max(S.done[w.id+':quiz']||0,S.q.score);save();if(S.q.score>=2)award(30,'Quiz passed');checkWorld(w)}
+  rerender()}
+/* ===== ARENA ===== */
+S.pick={L:null,I:null};
+function arena(){
+  let h='<div class="crumbs"><button class="btn alt" data-act="home">&larr; Map</button><h2>The Arena</h2></div><p>Three shops, one market. Change any number below and every ratio, verdict and decision updates. Then make two real decisions like a banker and an investor.</p>';
+  h+='<div class="card"><h3>Edit the numbers (Rs. lakh)</h3><details><summary><b>Open all inputs for the three shops</b></summary><div class="agrid">'+['A','B','C'].map(k=>'<div><h3>'+PRESETS[k].name+'</h3>'+inputsHTML(k,FIELDS.map(f=>f[0]),'a'+k+'-')+'<button class="btn alt" data-act="resetarena" data-id="'+k+'" style="margin-top:.6rem">Reset '+PRESETS[k].name+'</button></div>').join('')+'</div></details></div>';
+  h+='<div id="asum" class="agrid"></div><h3 style="margin:1rem 0 .5rem">Ratio scoreboard</h3><div id="atable" class="tablewrap"></div><div id="adecide"></div>';
+  return h}
+function allScores(){const out={};['A','B','C'].forEach(k=>{const r=calc(S.cos[k]);out[k]=r});return out}
+function pts(id,val){const c=zoneOf(id,val).cls;return c==='good'?2:c==='warn'?1:0}
+function arenaUpdate(){
+  const R=allScores(),keys=['A','B','C'];
+  const groups=[['liq','Liquidity'],['act','Activity'],['pro','Profitability'],['sol','Solvency'],['mkt','Market test']];
+  let t='<table><thead><tr><th>Ratio</th>'+keys.map(k=>'<th>'+PRESETS[k].name+'</th>').join('')+'</tr></thead><tbody>';
+  groups.forEach(g=>{t+='<tr class="grp"><td colspan="4">'+g[1]+'</td></tr>';
+    Object.keys(RATIOS).filter(id=>RATIOS[id].w===g[0]).forEach(id=>{const r=RATIOS[id];
+      const vals=keys.map(k=>R[k].v[id]);let bestK=null;
+      if((r.better==='high'||r.better==='low')&&vals.every(Number.isFinite)){const m=r.better==='high'?Math.max(...vals):Math.min(...vals);if(vals.filter(x=>x===m).length===1)bestK=keys[vals.indexOf(m)]}
+      t+='<tr><td><b>'+r.n+'</b></td>'+keys.map((k,i)=>{const z=zoneOf(id,vals[i]);return '<td class="num '+(bestK===k?'best':'')+'">'+FMT[r.f](vals[i])+' <span class="pill '+z.cls+'">'+WORD[z.cls]+'</span></td>'}).join('')+'</tr>'})});
+  t+='</tbody></table>';
+  $('#atable').innerHTML=t;
+  $('#asum').innerHTML=keys.map(k=>{const ids=Object.keys(RATIOS);let g=0,wn=0,b=0,worst=[];
+    ids.forEach(id=>{const c=zoneOf(id,R[k].v[id]).cls;if(c==='good')g++;else if(c==='warn')wn++;else if(c==='bad'){b++;worst.push(RATIOS[id].n)}});
+    return '<div class="card"><h3>'+PRESETS[k].name+'</h3><p class="muted">'+PRESETS[k].tag+'</p><p><span class="pill good">'+g+' healthy</span> <span class="pill warn">'+wn+' watch</span> <span class="pill bad">'+b+' danger</span></p><p>'+(worst.length?'<b>Biggest worries:</b> '+worst.slice(0,3).join(', ')+'.':'<b>No danger signs.</b>')+'</p></div>'}).join('')+'<div class="card" style="grid-column:1/-1"><span class="muted">The gold outline marks the best value among the three, where higher or lower is clearly better. Ratios like the current ratio have a comfort band instead, so none is crowned.</span></div>';
+  decide(R)}
+function score(R,k,ws){return ws.reduce((a,w)=>a+Object.keys(RATIOS).filter(id=>RATIOS[id].w===w).reduce((s,id)=>s+pts(id,R[k].v[id]),0),0)}
+function decide(R){
+  R=R||allScores();const keys=['A','B','C'];
+  const D=[['L','Decision 1: You are a banker. Which shop gets the new loan?','Lenders want to be repaid. They study liquidity and solvency.',['liq','sol']],['I','Decision 2: You are an investor. Which shop gets your savings?','Investors want growth and returns. They study profitability and market ratios.',['pro','mkt']]];
+  $('#adecide').innerHTML=D.map(d=>{const sc=Object.fromEntries(keys.map(k=>[k,score(R,k,d[3])])),mx=Math.max(...Object.values(sc)),pick=S.pick[d[0]];
+    let res='';
+    if(pick){const ok=sc[pick]===mx;const best=keys.filter(k=>sc[k]===mx).map(k=>PRESETS[k].name).join(' / ');
+      res='<p><b>'+(ok?'Good choice. ':'Look again. ')+'</b>Scores: '+keys.map(k=>PRESETS[k].name+' <span class="mono">'+sc[k]+'</span>').join(', ')+'. Best: '+best+'.</p>';
+      const key=d[0]==='L'?'arenaL':'arenaI';
+      if(ok&&!S.done[key]){S.done[key]=1;save();award(40,'Arena decision');if(S.done.arenaL&&S.done.arenaI)badge('arena')}}
+    return '<div class="card" style="margin-top:1rem"><h3>'+d[1]+'</h3><p class="muted">'+d[2]+' Score: healthy ratio = 2 points, watch = 1, danger = 0.</p><div class="co-tabs">'+keys.map(k=>'<button class="step" aria-selected="'+(pick===k)+'" data-act="pick" data-kind="'+d[0]+'" data-id="'+k+'">'+PRESETS[k].name+'</button>').join('')+'</div>'+res+'</div>'}).join('')}
+
+/* ===== ROUTER ===== */
+function rerender(){
+  const a=$('#app');
+  if(S.view==='home')a.innerHTML=home();
+  else if(S.view==='arena'){a.innerHTML=arena();arenaUpdate()}
+  else{a.innerHTML=world();if(S.step==='lab')updateLab()}
+  hud()}
+function go(view){S.view=view;S.step='learn';S.sel=null;S.placed={};S.q={i:0,score:0,streak:0,ans:null};const w=WBY[view];if(w)S.co=w.co;rerender();window.scrollTo(0,0)}
+document.addEventListener('click',e=>{
+  const slot=e.target.closest('[data-slot]');
+  if(slot){const id=slot.dataset.ratio;if(S.done['b:'+id])return;
+    if(S.sel&&!(S.placed[id]&&S.placed[id][slot.dataset.slot])){place(id,slot.dataset.slot,S.sel);S.sel=null}
+    else if(S.placed[id]&&S.placed[id][slot.dataset.slot]){S.placed[id][slot.dataset.slot]=null;rerender()}
+    return}
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;
+  if(a==='home')go('home');
+  else if(a==='world')go(id);
+  else if(a==='arena')go('arena');
+  else if(a==='step'){S.step=id;if(id==='quiz')S.q={i:0,score:0,streak:0,ans:null};if(id==='lab')S.co=WBY[S.view].mission.co;rerender();window.scrollTo(0,0)}
+  else if(a==='co'){S.co=id;rerender()}
+  else if(a==='resetco'){resetCo(S.co);rerender()}
+  else if(a==='resetarena'){resetCo(id);rerender();const d=$('#app details');if(d)d.open=true}
+  else if(a==='chip'){S.sel=b.dataset.chip;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('sel',c===b))}
+  else if(a==='ans')answer(+id);
+  else if(a==='qnext')qnext();
+  else if(a==='qretry'){S.q={i:0,score:0,streak:0,ans:null};rerender()}
+  else if(a==='pick'){S.pick[b.dataset.kind]=id;decide()}
+  else if(a==='reset'){S.xp=0;S.done={};S.badges={};S.pick={L:null,I:null};['A','B','C'].forEach(resetCo);save();go('home');toast('Progress reset')}
+});
+hud();rerender();
+</script>
+
+</body></html>
